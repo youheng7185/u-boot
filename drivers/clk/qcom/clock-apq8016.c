@@ -135,6 +135,24 @@ static ulong apq8016_clk_set_rate(struct clk *clk, ulong rate)
 	}
 }
 
+/*
+ * MSM8917 uses a different GPLL status register layout from MSM8916.
+ * For the initial SDHC2 bring-up, use the always-available 19.2 MHz XO
+ * directly and avoid relying on GPLL state inherited from the bootloader.
+ */
+static ulong msm8917_clk_set_rate(struct clk *clk, ulong rate)
+{
+	struct msm_clk_priv *priv = dev_get_priv(clk->dev);
+
+	switch (clk->id) {
+	case GCC_SDCC2_APPS_CLK:
+		clk_rcg_set_rate(priv->base, SDCC_CMD_RCGR(1), 1, 0);
+		return 19200000;
+	default:
+		return 0;
+	}
+}
+
 static int apq8016_clk_enable(struct clk *clk)
 {
 	struct msm_clk_priv *priv = dev_get_priv(clk->dev);
@@ -156,10 +174,22 @@ static struct msm_clk_data apq8016_clk_data = {
 	.enable = apq8016_clk_enable,
 };
 
+static struct msm_clk_data msm8917_clk_data = {
+	.set_rate = msm8917_clk_set_rate,
+	.clks = apq8016_clks,
+	.num_clks = ARRAY_SIZE(apq8016_clks),
+	.enable = apq8016_clk_enable,
+};
+
 static const struct udevice_id gcc_apq8016_of_match[] = {
 	{
 		.compatible = "qcom,gcc-msm8916",
 		.data = (ulong)&apq8016_clk_data,
+	},
+	{
+		/* MSM8917 shares SDCC2 gate and RCG offsets, but not GPLL status. */
+		.compatible = "qcom,gcc-msm8917",
+		.data = (ulong)&msm8917_clk_data,
 	},
 	{ }
 };

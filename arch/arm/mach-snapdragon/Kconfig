@@ -5,6 +5,10 @@ config TARGET_J2Y18LTE
 	select OF_CONTROL
 	select OF_EMBED
 	select DM_SERIAL
+	select DM_MMC
+	select MMC
+	select MMC_SDHCI
+	select MMC_SDHCI_MSM
 	select SERIAL
 	select J2_FB_SERIAL
 	select LINUX_KERNEL_IMAGE_HEADER

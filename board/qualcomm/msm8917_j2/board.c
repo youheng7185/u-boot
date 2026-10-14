@@ -3,6 +3,8 @@
 
 #include <cpu_func.h>
 #include <init.h>
+#include <asm/io.h>
+#include <linux/bitops.h>
 #include <linux/types.h>
 
 #define J2_FB_BASE     0xA800035AUL
@@ -14,6 +16,15 @@
 #define J2_PROGRESS_Y  128
 #define J2_PROGRESS_W  24
 #define J2_PROGRESS_H  24
+
+/* Dedicated MSM8917 SDC2 pad control; this does not overlap SDC1/eMMC. */
+#define J2_TLMM_SDC2_CFG 0x01109000UL
+#define J2_SDC2_CLK_PULL GENMASK(15, 14)
+#define J2_SDC2_CLK_DRV  GENMASK(8, 6)
+#define J2_SDC2_CMD_PULL GENMASK(12, 11)
+#define J2_SDC2_CMD_DRV  GENMASK(5, 3)
+#define J2_SDC2_DAT_PULL GENMASK(10, 9)
+#define J2_SDC2_DAT_DRV  GENMASK(2, 0)
 
 void j2_early_progress(unsigned int stage)
 {
@@ -55,6 +66,13 @@ static void j2_fb_block(unsigned int x, u8 red, u8 green, u8 blue)
 
 int board_early_init_f(void)
 {
+	/* Match the kernel's active SDC2 pad settings: CLK 12mA, CMD/DATA 8mA. */
+	clrsetbits_le32((void *)J2_TLMM_SDC2_CFG,
+			J2_SDC2_CLK_PULL | J2_SDC2_CLK_DRV |
+			J2_SDC2_CMD_PULL | J2_SDC2_CMD_DRV |
+			J2_SDC2_DAT_PULL | J2_SDC2_DAT_DRV,
+			(5 << 6) | (3 << 11) | (3 << 3) | (3 << 9) | 3);
+
 	/* RGB888 blocks: red, green, blue, and white. */
 	j2_fb_block(J2_MARKER_X, 0xff, 0x00, 0x00);
 	j2_fb_block(J2_MARKER_X + J2_BLOCK_W, 0x00, 0xff, 0x00);
