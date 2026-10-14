@@ -3,6 +3,7 @@
 
 #include <cpu_func.h>
 #include <init.h>
+#include <asm/global_data.h>
 #include <asm/io.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
@@ -25,6 +26,19 @@
 #define J2_SDC2_CMD_DRV  GENMASK(5, 3)
 #define J2_SDC2_DAT_PULL GENMASK(10, 9)
 #define J2_SDC2_DAT_DRV  GENMASK(2, 0)
+
+DECLARE_GLOBAL_DATA_PTR;
+
+/* Relocate below the modem carveout while retaining the full SMEM RAM map. */
+#define J2_UBOOT_RELOC_TOP 0x93000000UL
+
+phys_addr_t board_get_usable_ram_top(phys_size_t total_size)
+{
+	(void)total_size;
+
+	return gd->ram_top < J2_UBOOT_RELOC_TOP ? gd->ram_top :
+		J2_UBOOT_RELOC_TOP;
+}
 
 void j2_early_progress(unsigned int stage)
 {

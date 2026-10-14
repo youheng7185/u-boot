@@ -14,10 +14,10 @@
 		mmc0 = &sdhc2;
 	};
 
-	/* Keep U-Boot relocation inside the low RAM range described by the phone DT. */
-	memory@80000000 {
+	/* Let Qualcomm's SMEM usable-RAM table provide the full safe RAM map. */
+	memory {
 		device_type = "memory";
-		reg = <0x0 0x80000000 0x0 0x04000000>;
+		reg = <0x0 0x0 0x0 0x0>;
 	};
 
 	display-console {
@@ -46,6 +46,62 @@
 		smem@86300000 {
 			compatible = "qcom,smem";
 			reg = <0x0 0x86300000 0x0 0x100000>;
+			no-map;
+		};
+
+		/* Match the phone DT carveouts so U-Boot does not touch firmware RAM. */
+		tzapp@84300000 {
+			reg = <0x0 0x84300000 0x0 0x00d00000>;
+			no-map;
+		};
+
+		sec-debug@85000000 {
+			reg = <0x0 0x85000000 0x0 0x00800000>;
+			no-map;
+		};
+
+		ss-plog@85c00000 {
+			reg = <0x0 0x85c00000 0x0 0x00400000>;
+			no-map;
+		};
+
+		other-ext-before-smem@86100000 {
+			reg = <0x0 0x86100000 0x0 0x00200000>;
+			no-map;
+		};
+
+		other-ext-after-smem@86400000 {
+			reg = <0x0 0x86400000 0x0 0x00400000>;
+			no-map;
+		};
+
+		modem@86800000 {
+			reg = <0x0 0x86800000 0x0 0x05a00000>;
+			no-map;
+		};
+
+		adsp-fw@8c200000 {
+			reg = <0x0 0x8c200000 0x0 0x01800000>;
+			no-map;
+		};
+
+		lk@8f600000 {
+			reg = <0x0 0x8f600000 0x0 0x00300000>;
+			no-map;
+		};
+
+		wcnss-fw@8da00000 {
+			reg = <0x0 0x8da00000 0x0 0x00700000>;
+			no-map;
+		};
+
+		venus@8fc00000 {
+			reg = <0x0 0x8fc00000 0x0 0x00400000>;
+			no-map;
+		};
+
+		modem-shared@93000000 {
+			reg = <0x0 0x93000000 0x0 0x06000000>;
 			no-map;
 		};
 	};
