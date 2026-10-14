@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: GPL-2.0+
+/* Minimal visual marker proving execution reached U-Boot board C init. */
+
+#include <cpu_func.h>
+#include <init.h>
+#include <linux/types.h>
+
+#define J2_FB_BASE     0xA800035AUL
+#define J2_FB_STRIDE   1620
+#define J2_MARKER_X    16
+#define J2_MARKER_Y    16
+#define J2_BLOCK_W     120
+#define J2_BLOCK_H     48
+#define J2_PROGRESS_Y  128
+#define J2_PROGRESS_W  24
+#define J2_PROGRESS_H  24
+
+void j2_early_progress(unsigned int stage)
+{
+	u8 *fb = (u8 *)J2_FB_BASE;
+	unsigned int x, row, col;
+
+	if (!stage || stage > 12)
+		return;
+	x = 16 + (stage - 1) * 32;
+	for (row = 0; row < J2_PROGRESS_H; row++) {
+		u8 *pixel = fb + (J2_PROGRESS_Y + row) * J2_FB_STRIDE + x * 3;
+
+		for (col = 0; col < J2_PROGRESS_W; col++) {
+			*pixel++ = 0x00;
+			*pixel++ = 0xff;
+			*pixel++ = 0x00;
+		}
+	}
+	flush_dcache_range(J2_FB_BASE + J2_PROGRESS_Y * J2_FB_STRIDE + x * 3,
+			   J2_FB_BASE + (J2_PROGRESS_Y + J2_PROGRESS_H) *
+			   J2_FB_STRIDE + (x + J2_PROGRESS_W) * 3);
+}
+
+static void j2_fb_block(unsigned int x, u8 red, u8 green, u8 blue)
+{
+	u8 *fb = (u8 *)J2_FB_BASE;
+	unsigned int row, col;
+
+	for (row = 0; row < J2_BLOCK_H; row++) {
+		u8 *pixel = fb + (J2_MARKER_Y + row) * J2_FB_STRIDE + x * 3;
+
+		for (col = 0; col < J2_BLOCK_W; col++) {
+			*pixel++ = red;
+			*pixel++ = green;
+			*pixel++ = blue;
+		}
+	}
+}
+
+int board_early_init_f(void)
+{
+	/* RGB888 blocks: red, green, blue, and white. */
+	j2_fb_block(J2_MARKER_X, 0xff, 0x00, 0x00);
+	j2_fb_block(J2_MARKER_X + J2_BLOCK_W, 0x00, 0xff, 0x00);
+	j2_fb_block(J2_MARKER_X + 2 * J2_BLOCK_W, 0x00, 0x00, 0xff);
+	j2_fb_block(J2_MARKER_X + 3 * J2_BLOCK_W, 0xff, 0xff, 0xff);
+	flush_dcache_range(J2_FB_BASE + J2_MARKER_Y * J2_FB_STRIDE,
+			   J2_FB_BASE + (J2_MARKER_Y + J2_BLOCK_H) *
+			   J2_FB_STRIDE);
+
+	return 0;
+}

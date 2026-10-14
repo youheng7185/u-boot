@@ -53,6 +53,25 @@ _bss_end_ofs:
 	.quad	__bss_end - _start
 
 reset:
+	/* Early handoff marker: magenta block means the branch reached U-Boot. */
+	ldr	x9, =0xa800035a + 80 * 1620 + 16 * 3
+	mov	w10, #48
+0:
+	mov	w11, #120
+1:
+	mov	w12, #0xff
+	strb	w12, [x9], #1
+	mov	w12, #0x00
+	strb	w12, [x9], #1
+	mov	w12, #0xff
+	strb	w12, [x9], #1
+	subs	w11, w11, #1
+	b.ne	1b
+	add	x9, x9, #1260
+	subs	w10, w10, #1
+	b.ne	0b
+	dsb	sy
+
 	/* Allow the board to save important registers */
 	b	save_boot_params
 .globl	save_boot_params_ret
@@ -205,6 +224,23 @@ slave_cpu:
 #endif /* CONFIG_ARMV8_MULTIENTRY */
 master_cpu:
 	msr	SPSel, #1		/* make sure we use SP_ELx */
+	/* Cyan block means the low-level assembly reached the C runtime. */
+	ldr	x9, =0xa800035a + 80 * 1620 + 160 * 3
+	mov	w10, #48
+2:
+	mov	w11, #120
+3:
+	mov	w12, #0x00
+	strb	w12, [x9], #1
+	mov	w12, #0xff
+	strb	w12, [x9], #1
+	strb	w12, [x9], #1
+	subs	w11, w11, #1
+	b.ne	3b
+	add	x9, x9, #1260
+	subs	w10, w10, #1
+	b.ne	2b
+	dsb	sy
 	bl	_main
 
 /*-----------------------------------------------------------------------*/

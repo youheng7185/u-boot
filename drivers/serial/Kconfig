@@ -15,6 +15,14 @@ menuconfig SERIAL
 
 if SERIAL
 
+config J2_FB_SERIAL
+	bool "Samsung J2 simple-framebuffer console"
+	depends on DM_SERIAL && OF_CONTROL
+	help
+	  Route U-Boot console output to the RGB888 framebuffer configured by
+	  the Samsung J2 S-Boot display path. This does not initialize display
+	  hardware and provides no input device.
+
 config BAUDRATE
 	int "Default baudrate"
 	default 115200

@@ -1,5 +1,18 @@
 if ARCH_SNAPDRAGON
 
+config TARGET_J2Y18LTE
+	bool "Samsung Galaxy J2 2018 (MSM8917)"
+	select OF_CONTROL
+	select OF_EMBED
+	select DM_SERIAL
+	select SERIAL
+	select J2_FB_SERIAL
+	select LINUX_KERNEL_IMAGE_HEADER
+	help
+	  Minimal chainloaded U-Boot for Samsung Galaxy J2 2018. The Android
+	  bootloader's DTB is ignored; U-Boot uses a tiny built-in control FDT
+	  and writes its console directly to the framebuffer left active by S-Boot.
+
 config SYS_SOC
 	default "snapdragon"
 

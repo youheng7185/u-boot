@@ -28,6 +28,13 @@
 #include <i2c.h>
 #include <init.h>
 #include <initcall.h>
+
+#ifdef CONFIG_TARGET_J2Y18LTE
+extern void j2_early_progress(unsigned int stage);
+#define J2_PROGRESS(stage) j2_early_progress(stage)
+#else
+#define J2_PROGRESS(stage) do { } while (0)
+#endif
 #include <log.h>
 #include <malloc.h>
 #include <mapmem.h>
@@ -923,30 +930,41 @@ static void initcall_run_f(void)
 	 * For simplicity it should remain an ordered list of function calls.
 	 */
 	INITCALL(setup_mon_len);
+	J2_PROGRESS(2);
 	INITCALL(initf_malloc);
+	J2_PROGRESS(3);
 #if CONFIG_IS_ENABLED(OF_CONTROL)
 	INITCALL(fdtdec_setup);
+	J2_PROGRESS(4);
 #endif
 #if CONFIG_IS_ENABLED(TRACE_EARLY)
 	INITCALL(trace_early_init);
 #endif
 	INITCALL(initf_upl);
 	INITCALL(log_init);
+	J2_PROGRESS(5);
 	INITCALL(initf_bootstage); /* uses its own timer, so does not need DM */
+	J2_PROGRESS(6);
 	INITCALL(event_init);
+	J2_PROGRESS(7);
 #if CONFIG_IS_ENABLED(BLOBLIST)
 	INITCALL(bloblist_init);
 #endif
 	INITCALL(setup_spl_handoff);
+	J2_PROGRESS(8);
 #if CONFIG_IS_ENABLED(CONSOLE_RECORD_INIT_F)
 	INITCALL(console_record_init);
 #endif
 	INITCALL_EVT(EVT_FSP_INIT_F);
 	INITCALL(arch_cpu_init);	/* basic arch cpu dependent setup */
+	J2_PROGRESS(9);
 	INITCALL(mach_cpu_init);	/* SoC/machine dependent CPU setup */
+	J2_PROGRESS(10);
 	INITCALL(initf_dm);
+	J2_PROGRESS(11);
 #if CONFIG_IS_ENABLED(BOARD_EARLY_INIT_F)
 	INITCALL(board_early_init_f);
+	J2_PROGRESS(12);
 #endif
 #if defined(CONFIG_PPC) || defined(CONFIG_SYS_FSL_CLK) || defined(CONFIG_M68K)
 	/* get CPU and bus clocks according to the environment variable */
@@ -1079,6 +1097,7 @@ void board_init_f(ulong boot_flags)
 	gd->flags = boot_flags;
 	gd->flags &= ~GD_FLG_HAVE_CONSOLE;
 	gd->boardf = &boardf;
+	J2_PROGRESS(1);
 
 	initcall_run_f();
 

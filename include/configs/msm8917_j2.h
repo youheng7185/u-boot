@@ -1,0 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
+#ifndef __MSM8917_J2_H
+#define __MSM8917_J2_H
+
+#define CFG_SYS_BAUDRATE_TABLE { 115200 }
+#define CFG_SYS_SDRAM_BASE 0x80000000
+#define CFG_SYS_LOAD_ADDR  0x90000000
+#define CFG_SYS_BOOTM_LEN  0x02000000
+
+#endif

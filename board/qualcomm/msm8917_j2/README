@@ -1,0 +1,31 @@
+Samsung Galaxy J2 2018 (MSM8917) U-Boot handoff build
+======================================================
+
+This is a chainloaded U-Boot image for the existing j2y18lte bare-metal
+wrapper. It assumes S-Boot has already initialized DRAM and left the panel
+scanning its RGB888 framebuffer. It does not initialize the display or other
+peripherals.
+
+Build from the U-Boot source root with:
+
+    make msm8917_j2y18lte_defconfig
+    make CROSS_COMPILE=aarch64-linux-gnu- -j$(nproc)
+
+The result is u-boot.bin. It has a Linux arm64 Image header, is linked to
+0x90000000, and expects the wrapper to branch to that address. The wrapper's
+incoming x0 is not required: the U-Boot control FDT is embedded in the image.
+The built-in FDT intentionally omits RAM ranges so the Snapdragon code reads
+the memory map from SMEM. The framebuffer console writes directly to the
+RGB888 buffer at 0xA800035A (540x960, 1620-byte stride).
+
+To build the wrapper around this image from j2y18lte_baremetal:
+
+    make wrapped_kernel KERNEL_PATH=/path/to/u-boot/u-boot.bin
+
+The bare-metal build script also accepts a kernel override and then packs
+boot.img with the Android DT component:
+
+    KERNEL_PATH=/path/to/u-boot.bin ./build.sh
+
+The normal boot.img DT component remains the one required by the Android
+bootloader. It is not used as U-Boot's control FDT.

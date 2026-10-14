@@ -1,0 +1,48 @@
+/dts-v1/;
+
+/ {
+	model = "Samsung Galaxy J2 2018 (MSM8917) U-Boot";
+	compatible = "samsung,j2y18lte", "qcom,msm8917";
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	chosen {
+		stdout-path = "/display-console";
+	};
+
+	/* Keep U-Boot relocation inside the low RAM range described by the phone DT. */
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x04000000>;
+	};
+
+	display-console {
+		compatible = "samsung,j2y18lte-fb-console";
+		status = "okay";
+		bootph-all;
+	};
+
+	/* The display controller is already scanning this S-Boot framebuffer. */
+	framebuffer@a800035a {
+		compatible = "simple-framebuffer";
+		reg = <0x0 0xa800035a 0x0 0x300000>;
+		width = <540>;
+		height = <960>;
+		stride = <1620>;
+		format = "r8g8b8";
+		status = "okay";
+	};
+
+	/* Needed by Snapdragon DRAM discovery when the internal FDT omits /memory. */
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		smem@86300000 {
+			compatible = "qcom,smem";
+			reg = <0x0 0x86300000 0x0 0x100000>;
+			no-map;
+		};
+	};
+};

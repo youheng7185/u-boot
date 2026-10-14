@@ -24,7 +24,7 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
-static struct mm_region rbx_mem_map[CONFIG_NR_DRAM_BANKS + 2] = { { 0 } };
+static struct mm_region rbx_mem_map[CONFIG_NR_DRAM_BANKS + 3] = { { 0 } };
 
 struct mm_region *mem_map = rbx_mem_map;
 
@@ -46,13 +46,21 @@ static void build_mem_map(void)
 			 PTE_BLOCK_NON_SHARE |
 			 PTE_BLOCK_PXN | PTE_BLOCK_UXN;
 
-	for (i = 1, j = 0; i < ARRAY_SIZE(rbx_mem_map) - 1 && gd->dram[j].size; i++, j++) {
+	for (i = 1, j = 0; i < ARRAY_SIZE(rbx_mem_map) - 2 && gd->dram[j].size; i++, j++) {
 		mem_map[i].phys = gd->dram[j].start;
 		mem_map[i].virt = mem_map[i].phys;
 		mem_map[i].size = gd->dram[j].size;
 		mem_map[i].attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) | \
 				   PTE_BLOCK_INNER_SHARE;
 	}
+
+	/* The panel remains active after handoff; keep its framebuffer mapped too. */
+	mem_map[i].phys = 0xa8000000;
+	mem_map[i].virt = mem_map[i].phys;
+	mem_map[i].size = SZ_4K * 768; /* 0x300000 bytes */
+	mem_map[i].attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+			   PTE_BLOCK_INNER_SHARE;
+	i++;
 
 	mem_map[i].phys = UINT64_MAX;
 	mem_map[i].size = 0;
