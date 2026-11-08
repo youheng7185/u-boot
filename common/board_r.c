@@ -10,6 +10,14 @@
  */
 
 #include <config.h>
+#ifdef CONFIG_GTS9FEPWIFI
+extern void gts9_early_progress(unsigned int stage);
+extern void gts9_board_r_probe(void);
+extern void gts9_board_r_probe_after(void);
+#define GTS9_PROGRESS(stage) gts9_early_progress(stage)
+#else
+#define GTS9_PROGRESS(stage) do { } while (0)
+#endif
 #include <api.h>
 #include <bootstage.h>
 #include <cpu_func.h>
@@ -230,8 +238,15 @@ static int initr_malloc(void)
 	 * reserve_noncached().
 	 */
 	start = gd->relocaddr - TOTAL_MALLOC_LEN;
+#ifdef CONFIG_GTS9FEPWIFI
+	printf("gts9: heap start=%016lx size=%08lx reloc=%016lx\n",
+	       start, (ulong)TOTAL_MALLOC_LEN, gd->relocaddr);
+#endif
 	gd_set_malloc_start(start);
 	mem_malloc_init(start, TOTAL_MALLOC_LEN);
+#ifdef CONFIG_GTS9FEPWIFI
+	printf("gts9: heap initialized brk=%016lx\n", mem_malloc_brk);
+#endif
 	return 0;
 }
 
@@ -256,10 +271,13 @@ static int initr_dm(void)
 {
 	int ret;
 
+	GTS9_PROGRESS(42);
 	oftree_reset();
+	GTS9_PROGRESS(46);
 
 	/* Drop the pre-reloc driver model and start a new one */
 	gd->dm_root = NULL;
+	GTS9_PROGRESS(47);
 #ifdef CONFIG_TIMER
 	gd->timer = NULL;
 #endif
@@ -269,7 +287,10 @@ static int initr_dm(void)
 	if (ret)
 		return ret;
 
-	return dm_autoprobe();
+	ret = dm_autoprobe();
+	if (!ret)
+		GTS9_PROGRESS(45);
+	return ret;
 }
 #endif
 
@@ -601,9 +622,12 @@ static void initcall_run_r(void)
 	INITCALL(initr_trace);
 	INITCALL(initr_reloc);
 	INITCALL(event_init);
+	GTS9_PROGRESS(31);
 	/* TODO: could x86/PPC have this also perhaps? */
 #if CONFIG_IS_ENABLED(ARM) || CONFIG_IS_ENABLED(RISCV)
 	INITCALL(initr_caches);
+	GTS9_PROGRESS(32);
+	GTS9_PROGRESS(18);
 	/* Note: For Freescale LS2 SoCs, new MMU table is created in DDR.
 	 *	 A temporary mapping of IFC high region is since removed,
 	 *	 so environmental variables in NOR flash is not available
@@ -612,11 +636,13 @@ static void initcall_run_r(void)
 	 */
 #endif
 	INITCALL(initr_reloc_global_data);
+	GTS9_PROGRESS(33);
 #if CONFIG_IS_ENABLED(SYS_INIT_RAM_LOCK) && CONFIG_IS_ENABLED(E500)
 	INITCALL(initr_unlock_ram_in_cache);
 #endif
 	INITCALL(initr_barrier);
 	INITCALL(initr_malloc);
+	GTS9_PROGRESS(34);
 	INITCALL(log_init);
 	INITCALL(initr_bootstage); /* Needs malloc() but has its own timer */
 #if CONFIG_IS_ENABLED(CONSOLE_RECORD)
@@ -626,8 +652,11 @@ static void initcall_run_r(void)
 	INITCALL(noncached_init);
 #endif
 	INITCALL(initr_of_live);
+	GTS9_PROGRESS(35);
 #if CONFIG_IS_ENABLED(DM)
 	INITCALL(initr_dm);
+	GTS9_PROGRESS(36);
+	GTS9_PROGRESS(19);
 #endif
 #if CONFIG_IS_ENABLED(ADDR_MAP)
 	INITCALL(init_addr_map);
@@ -635,6 +664,7 @@ static void initcall_run_r(void)
 #if CONFIG_IS_ENABLED(BOARD_INIT)
 	INITCALL(board_init);	/* Setup chipselects */
 #endif
+	GTS9_PROGRESS(66);
 	/*
 	 * TODO: printing of the clock inforamtion of the board is now
 	 * implemented as part of bdinfo command. Currently only support for
@@ -645,9 +675,11 @@ static void initcall_run_r(void)
 	INITCALL(set_cpu_clk_info);
 #endif
 	INITCALL(initr_lmb);
+	GTS9_PROGRESS(67);
 #if CONFIG_IS_ENABLED(EFI_LOADER)
 	INITCALL(efi_memory_init);
 #endif
+	GTS9_PROGRESS(68);
 #if CONFIG_IS_ENABLED(BINMAN_FDT)
 	INITCALL(initr_binman);
 #endif
@@ -655,7 +687,10 @@ static void initcall_run_r(void)
 	INITCALL(arch_fsp_init_r);
 #endif
 	INITCALL(initr_dm_devices);
+	GTS9_PROGRESS(69);
+	GTS9_PROGRESS(37);
 	INITCALL(stdio_init_tables);
+	GTS9_PROGRESS(38);
 	INITCALL(serial_initialize);
 	INITCALL(initr_announce);
 	INITCALL(dm_announce);
@@ -710,6 +745,7 @@ static void initcall_run_r(void)
 	INITCALL(initr_pvblock);
 #endif
 	INITCALL(initr_env);
+	GTS9_PROGRESS(39);
 #if CONFIG_IS_ENABLED(SYS_MALLOC_BOOTPARAMS)
 	INITCALL(initr_malloc_bootparams);
 #endif
@@ -727,11 +763,15 @@ static void initcall_run_r(void)
 	INITCALL(pci_init);
 #endif
 	INITCALL(stdio_add_devices);
+	GTS9_PROGRESS(40);
+	GTS9_PROGRESS(20);
 	INITCALL(jumptable_init);
 #if CONFIG_IS_ENABLED(API)
 	INITCALL(api_init);
 #endif
 	INITCALL(console_init_r);	/* fully init console as a device */
+	GTS9_PROGRESS(41);
+	GTS9_PROGRESS(21);
 #if CONFIG_IS_ENABLED(DISPLAY_BOARDINFO_LATE)
 	INITCALL(console_announce_r);
 	INITCALL(show_board_info);
@@ -773,11 +813,24 @@ static void initcall_run_r(void)
 	INITCALL(initr_mem);
 #endif
 	INITCALL(initr_boot_led_on);
+	GTS9_PROGRESS(22);
 	INITCALL(run_main_loop);
 }
 
 void board_init_r(gd_t *new_gd, ulong dest_addr)
 {
+#ifdef CONFIG_GTS9FEPWIFI
+	ulong here;
+
+	asm volatile("adr %0, ." : "=r"(here));
+	printf("gts9: board_init_r pc=%016lx reloc=%016lx off=%016lx flags=%08lx\n",
+	       here, gd->relocaddr, gd->reloc_off, gd->flags);
+	gts9_board_r_probe();
+#endif
+	GTS9_PROGRESS(17);
+#ifdef CONFIG_GTS9FEPWIFI
+	gts9_board_r_probe_after();
+#endif
 	/*
 	 * The pre-relocation drivers may be using memory that has now gone
 	 * away. Mark serial as unavailable - this will fall back to the debug

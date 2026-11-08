@@ -1,0 +1,31 @@
+// SPDX-License-Identifier: GPL-2.0+
+/dts-v1/;
+
+/* Build-time fallback. The working tree comes from S-Boot at runtime. */
+/ {
+	model = "Samsung Galaxy Tab S9 FE+ Wi-Fi (SM-X610)";
+	compatible = "samsung,gts9fepwifi", "samsung,s5e8835";
+	#address-cells = <2>;
+	#size-cells = <1>;
+
+	chosen {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges;
+		stdout-path = "/chosen/framebuffer-console";
+
+		framebuffer-console {
+			compatible = "samsung,gts9fepwifi-fb-serial";
+			bootph-all;
+		};
+
+		framebuffer@fa200000 {
+			compatible = "simple-framebuffer";
+			reg = <0 0xfa200000 0xfa0000>;
+			width = <1600>;
+			height = <2560>;
+			stride = <6400>;
+			format = "a8r8g8b8";
+		};
+	};
+};

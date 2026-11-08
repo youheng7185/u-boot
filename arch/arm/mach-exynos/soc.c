@@ -32,7 +32,10 @@ void reset_cpu(void)
 #if !CONFIG_IS_ENABLED(SYS_DCACHE_OFF)
 void enable_caches(void)
 {
+	/* Preserve S-Boot's direct framebuffer access during SM-X610 bring-up. */
+#ifndef CONFIG_GTS9FEPWIFI
 	/* Enable D-cache. I-cache is already enabled in start.S */
 	dcache_enable();
+#endif
 }
 #endif

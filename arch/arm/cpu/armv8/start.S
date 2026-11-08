@@ -52,7 +52,31 @@ _bss_start_ofs:
 _bss_end_ofs:
 	.quad	__bss_end - _start
 
+#if defined(CONFIG_GTS9FEPWIFI)
+	/* Five permanent checkpoints in the top row, using the live splash FB. */
+	.macro gts9_mark xoff, low, high
+	movz	x9, #0xfa20, lsl #16
+	add	x9, x9, #\xoff
+	movz	w10, #\low
+	movk	w10, #\high, lsl #16
+	mov	w11, #16
+	mov	x13, #5888
+0:	mov	w12, #128
+1:	str	w10, [x9], #4
+	subs	w12, w12, #1
+	b.ne	1b
+	add	x9, x9, x13
+	subs	w11, w11, #1
+	b.ne	0b
+	dsb	sy
+	.endm
+#endif
+
 reset:
+#if defined(CONFIG_GTS9FEPWIFI)
+	gts9_mark 0, 0x00ff, 0x00ff /* magenta: reset */
+#endif
+#if defined(CONFIG_TARGET_J2Y18LTE)
 	/* Early handoff marker: magenta block means the branch reached U-Boot. */
 	ldr	x9, =0xa800035a + 80 * 1620 + 16 * 3
 	mov	w10, #48
@@ -71,11 +95,15 @@ reset:
 	subs	w10, w10, #1
 	b.ne	0b
 	dsb	sy
+#endif
 
 	/* Allow the board to save important registers */
 	b	save_boot_params
 .globl	save_boot_params_ret
 save_boot_params_ret:
+#if defined(CONFIG_GTS9FEPWIFI)
+	gts9_mark 640, 0xffff, 0x00ff /* yellow: x0 saved */
+#endif
 
 #if CONFIG_POSITION_INDEPENDENT && !defined(CONFIG_XPL_BUILD)
 	/* Verify that we're 4K aligned.  */
@@ -121,6 +149,9 @@ pie_skip_reloc:
 	cmp	x2, x3
 	b.lo	pie_fix_loop
 pie_fixup_done:
+#if defined(CONFIG_GTS9FEPWIFI)
+	gts9_mark 1280, 0xff00, 0x0000 /* green: PIE fixups */
+#endif
 #endif
 
 #if defined(CONFIG_ARMV8_SPL_EXCEPTION_VECTORS) || !defined(CONFIG_XPL_BUILD)
@@ -192,6 +223,9 @@ pie_fixup_done:
 
 	/* Processor specific initialization */
 	bl	lowlevel_init
+#if defined(CONFIG_GTS9FEPWIFI)
+	gts9_mark 1920, 0xffff, 0x0000 /* cyan: lowlevel_init */
+#endif
 
 #if defined(CONFIG_ARMV8_SPIN_TABLE) && !defined(CONFIG_XPL_BUILD)
 	branch_if_master x0, master_cpu
@@ -224,6 +258,10 @@ slave_cpu:
 #endif /* CONFIG_ARMV8_MULTIENTRY */
 master_cpu:
 	msr	SPSel, #1		/* make sure we use SP_ELx */
+#if defined(CONFIG_GTS9FEPWIFI)
+	gts9_mark 2560, 0x0000, 0x00ff /* red: entering _main */
+#endif
+#if defined(CONFIG_TARGET_J2Y18LTE)
 	/* Cyan block means the low-level assembly reached the C runtime. */
 	ldr	x9, =0xa800035a + 80 * 1620 + 160 * 3
 	mov	w10, #48
@@ -241,6 +279,7 @@ master_cpu:
 	subs	w10, w10, #1
 	b.ne	2b
 	dsb	sy
+#endif
 	bl	_main
 
 /*-----------------------------------------------------------------------*/

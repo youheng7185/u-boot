@@ -12,6 +12,7 @@
 #include <elf.h>
 #include <linux/linkage.h>
 #include <asm/macro.h>
+#include <asm/gts9-progress.h>
 
 /*
  * void relocate_code(addr_moni)
@@ -20,6 +21,9 @@
  * x0 holds the destination address.
  */
 ENTRY(relocate_code)
+#ifdef CONFIG_GTS9FEPWIFI
+	gts9_reloc_mark 832, 0x00ff, 0x0000 /* relocate_code entered */
+#endif
 	stp	x29, x30, [sp, #-32]!	/* create a stack frame */
 	mov	x29, sp
 	str	x0, [sp, #16]
@@ -53,6 +57,9 @@ copy_loop:
 	cmp	x1, x2			/* until source end address [x2] */
 	b.lo	copy_loop
 	str	x0, [sp, #24]
+#ifdef CONFIG_GTS9FEPWIFI
+	gts9_reloc_mark 1216, 0xffff, 0x0000 /* image copied */
+#endif
 
 	/*
 	 * Fix .rela.dyn relocations
@@ -75,6 +82,9 @@ fixloop:
 fixnext:
 	cmp	x2, x3
 	b.lo	fixloop
+#ifdef CONFIG_GTS9FEPWIFI
+	gts9_reloc_mark 1600, 0xff00, 0x0000 /* fixups applied */
+#endif
 
 relocate_done:
 	switch_el x1, 3f, 2f, 1f
@@ -92,5 +102,8 @@ relocate_done:
 	bl	__asm_flush_dcache_range
 	bl     __asm_flush_l3_dcache
 5:	ldp	x29, x30, [sp],#32
+#ifdef CONFIG_GTS9FEPWIFI
+	gts9_reloc_mark 1984, 0x00ff, 0x00ff /* cache flush returned */
+#endif
 	ret
 ENDPROC(relocate_code)

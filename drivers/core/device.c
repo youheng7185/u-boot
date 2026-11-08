@@ -37,6 +37,16 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#ifdef CONFIG_GTS9FEPWIFI
+extern void gts9_early_progress(unsigned int stage);
+#define GTS9_DM_MARK(stage) do { \
+	if (!parent && (gd->flags & GD_FLG_RELOC)) \
+		gts9_early_progress(stage); \
+} while (0)
+#else
+#define GTS9_DM_MARK(stage) do { } while (0)
+#endif
+
 static int device_bind_common(struct udevice *parent, const struct driver *drv,
 			      const char *name, void *plat,
 			      ulong driver_data, ofnode node,
@@ -47,6 +57,8 @@ static int device_bind_common(struct udevice *parent, const struct driver *drv,
 	int size, ret = 0;
 	bool auto_seq = true;
 	void *ptr;
+
+	GTS9_DM_MARK(55);
 
 	if (CONFIG_IS_ENABLED(OF_PLATDATA_NO_BIND))
 		return -ENOSYS;
@@ -61,10 +73,12 @@ static int device_bind_common(struct udevice *parent, const struct driver *drv,
 		dm_warn("Missing uclass for driver %s\n", drv->name);
 		return ret;
 	}
+	GTS9_DM_MARK(56);
 
 	dev = calloc(1, sizeof(struct udevice));
 	if (!dev)
 		return -ENOMEM;
+	GTS9_DM_MARK(57);
 
 	INIT_LIST_HEAD(&dev->sibling_node);
 	INIT_LIST_HEAD(&dev->child_head);
@@ -163,6 +177,7 @@ static int device_bind_common(struct udevice *parent, const struct driver *drv,
 	ret = uclass_bind_device(dev);
 	if (ret)
 		goto fail_uclass_bind;
+	GTS9_DM_MARK(58);
 
 	/* if we fail to bind we remove device from successors and free it */
 	if (drv->bind) {
@@ -261,9 +276,12 @@ int device_bind_by_name(struct udevice *parent, bool pre_reloc_only,
 	uint plat_size = 0;
 	int ret;
 
+	GTS9_DM_MARK(53);
+
 	drv = lists_driver_lookup_name(info->name);
 	if (!drv)
 		return -ENOENT;
+	GTS9_DM_MARK(54);
 	if (pre_reloc_only && !(drv->flags & DM_FLAG_PRE_RELOC))
 		return -EPERM;
 
@@ -274,6 +292,7 @@ int device_bind_by_name(struct udevice *parent, bool pre_reloc_only,
 				 ofnode_null(), plat_size, devp);
 	if (ret)
 		return ret;
+	GTS9_DM_MARK(59);
 
 	return ret;
 }

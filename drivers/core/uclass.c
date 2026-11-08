@@ -23,6 +23,16 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#ifdef CONFIG_GTS9FEPWIFI
+extern void gts9_early_progress(unsigned int stage);
+#define GTS9_ROOT_MARK(stage, id) do { \
+	if ((id) == UCLASS_ROOT && (gd->flags & GD_FLG_RELOC)) \
+		gts9_early_progress(stage); \
+} while (0)
+#else
+#define GTS9_ROOT_MARK(stage, id) do { } while (0)
+#endif
+
 struct uclass *uclass_find(enum uclass_id key)
 {
 	struct uclass *uc;
@@ -57,8 +67,11 @@ static int uclass_add(enum uclass_id id, struct uclass **ucp)
 	struct uclass *uc;
 	int ret;
 
+	GTS9_ROOT_MARK(62, id);
+
 	*ucp = NULL;
 	uc_drv = lists_uclass_lookup(id);
+	GTS9_ROOT_MARK(63, id);
 	if (!uc_drv) {
 		dm_warn("Cannot find uclass for id %d: please add the UCLASS_DRIVER() declaration for this UCLASS_... id\n",
 			id);
@@ -72,6 +85,7 @@ static int uclass_add(enum uclass_id id, struct uclass **ucp)
 	uc = calloc(1, sizeof(*uc));
 	if (!uc)
 		return -ENOMEM;
+	GTS9_ROOT_MARK(64, id);
 	if (uc_drv->priv_auto) {
 		void *ptr;
 
@@ -86,6 +100,7 @@ static int uclass_add(enum uclass_id id, struct uclass **ucp)
 	INIT_LIST_HEAD(&uc->sibling_node);
 	INIT_LIST_HEAD(&uc->dev_head);
 	list_add(&uc->sibling_node, DM_UCLASS_ROOT_NON_CONST);
+	GTS9_ROOT_MARK(65, id);
 
 	if (uc_drv->init) {
 		ret = uc_drv->init(uc);
@@ -146,11 +161,14 @@ int uclass_get(enum uclass_id id, struct uclass **ucp)
 {
 	struct uclass *uc;
 
+	GTS9_ROOT_MARK(60, id);
+
 	/* Immediately fail if driver model is not set up */
 	if (!gd->uclass_root)
 		return -EDEADLK;
 	*ucp = NULL;
 	uc = uclass_find(id);
+	GTS9_ROOT_MARK(61, id);
 	if (!uc) {
 		if (CONFIG_IS_ENABLED(OF_PLATDATA_INST))
 			return -ENOENT;

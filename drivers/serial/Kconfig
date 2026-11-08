@@ -23,6 +23,14 @@ config J2_FB_SERIAL
 	  the Samsung J2 S-Boot display path. This does not initialize display
 	  hardware and provides no input device.
 
+config GTS9_FB_SERIAL
+	bool "Samsung SM-X610 framebuffer console"
+	depends on DM_SERIAL && OF_CONTROL
+	help
+	  Route U-Boot serial console output to the ARGB8888 framebuffer
+	  configured by S-Boot. This driver does not initialize the panel or
+	  provide input.
+
 config BAUDRATE
 	int "Default baudrate"
 	default 115200

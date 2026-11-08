@@ -1,5 +1,10 @@
 if TARGET_EXYNOS_MOBILE
 
+config GTS9FEPWIFI
+	bool "Samsung Galaxy Tab S9 FE+ Wi-Fi (SM-X610)"
+	help
+	  Use the stock S-Boot devicetree and its display handover buffer.
+
 config ENV_SOURCE_FILE
 	default "exynos-mobile"
 

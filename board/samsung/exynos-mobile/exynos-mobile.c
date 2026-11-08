@@ -17,11 +17,154 @@
 #include <init.h>
 #include <linux/sizes.h>
 #include <lmb.h>
+#include <memtop.h>
+#include <malloc.h>
 #include <part.h>
 #include <stdbool.h>
 #include <string.h>
+#include <asm/io.h>
+#include <cpu_func.h>
+#include <linux/bitops.h>
 
 DECLARE_GLOBAL_DATA_PTR;
+
+#if IS_ENABLED(CONFIG_GTS9FEPWIFI)
+#define GTS9_FDT_CAPACITY SZ_1M
+#define GTS9_FB_BASE 0xfa200000U
+#define GTS9_FB_SIZE 0x00fa0000U
+#define GTS9_DECON_BASE 0x14940000U
+#define GTS9_GLOBAL_CON 0x20U
+#define GTS9_TRIG_CON 0x30U
+#define GTS9_COMMAND_MODE BIT(8)
+#define GTS9_HW_TRIG_MASK BIT(4)
+#define GTS9_HW_TRIG_EN BIT(0)
+#define GTS9_FB_WIDTH 1600U
+#define GTS9_UBOOT_WINDOW SZ_32M
+#define GTS9_PROGRESS_Y 64U
+#define GTS9_PROGRESS_W 64U
+#define GTS9_PROGRESS_H 32U
+
+void gts9_early_progress(unsigned int stage)
+{
+	static const u32 colors[69] = {
+		0x00ffffff, 0x00ff8000, 0x0000ff00, 0x0000ffff,
+		0x000000ff, 0x00ff00ff, 0x00ffff00, 0x0080ff00,
+		0x000080ff, 0x00ff0080, 0x008000ff, 0x00ff8000,
+		0x0000ff80, 0x0080ffff, 0x00ff8080, 0x00c0c0c0,
+		0x00ffffff, 0x00ffff00, 0x0000ffff, 0x0000ff00,
+		0x00ff00ff, 0x00ff8000,
+		0x00ffffff, 0x0000ff00, 0x0000ffff, 0x00ffff00,
+		0x00ff00ff, 0x000000ff, 0x00ff8000, 0x0080ffff,
+		0x00ffffff, 0x0000ff00,
+		0x0000ffff, 0x00ffff00, 0x00ff8000, 0x00ff00ff,
+		0x00ff0000, 0x000000ff, 0x00c0c0c0, 0x0000ff80,
+		0x008000ff,
+		0x00ffffff, 0x0000ff00, 0x000000ff, 0x00ffff00,
+		0x00ffffff, 0x0000ff00, 0x0000ffff, 0x00ffff00,
+		0x00ff8000, 0x00ff00ff, 0x00ff0000,
+		0x00ffffff, 0x0000ff00, 0x0000ffff, 0x00ffff00,
+		0x00ff8000, 0x00ff00ff, 0x000000ff,
+		0x00ffffff, 0x0000ff00, 0x0000ffff, 0x00ffff00,
+		0x00ff8000, 0x00ff00ff,
+		0x00ffffff, 0x0000ff00, 0x0000ffff, 0x00ffff00,
+	};
+	unsigned int x, y, col, start_y;
+	const u32 color = stage && stage <= ARRAY_SIZE(colors) ?
+			  colors[stage - 1] : 0;
+
+	if (!color)
+		return;
+	x = 16 + (stage > 65 ? stage - 66 :
+		  stage > 59 ? stage - 60 :
+		  stage > 52 ? stage - 53 :
+		  stage > 45 ? stage - 46 :
+		  stage > 30 ? stage - 31 :
+		  stage > 22 ? stage - 23 : (stage - 1) % 16) * 96;
+	start_y = stage > 65 ? 448 :
+		  stage > 59 ? 400 :
+		  stage > 52 ? 352 :
+		  stage > 45 ? 304 :
+		  stage > 30 ? 256 :
+		  stage > 22 ? 160 :
+		  GTS9_PROGRESS_Y + ((stage - 1) / 16) * 48;
+	for (y = start_y; y < start_y + GTS9_PROGRESS_H; y++) {
+		volatile u32 *row = (volatile u32 *)GTS9_FB_BASE +
+				y * GTS9_FB_WIDTH + x;
+
+		for (col = 0; col < GTS9_PROGRESS_W; col++)
+			row[col] = color;
+		flush_dcache_range((ulong)row,
+				   (ulong)(row + GTS9_PROGRESS_W));
+	}
+	asm volatile("dsb sy" ::: "memory");
+}
+
+static int gts9_add_framebuffer(void *fdt)
+{
+	fdt32_t reg[] = { cpu_to_fdt32(0), cpu_to_fdt32(GTS9_FB_BASE),
+			  cpu_to_fdt32(GTS9_FB_SIZE) };
+	int chosen, fb, ret;
+
+	chosen = fdt_path_offset(fdt, "/chosen");
+	if (chosen < 0)
+		chosen = fdt_add_subnode(fdt, 0, "chosen");
+	if (chosen < 0)
+		return chosen;
+	ret = fdt_setprop_u32(fdt, chosen, "#address-cells", 2);
+	ret = ret ?: fdt_setprop_u32(fdt, chosen, "#size-cells", 1);
+	if (ret)
+		return ret;
+
+	fb = fdt_subnode_offset(fdt, chosen, "framebuffer@fa200000");
+	if (fb < 0)
+		fb = fdt_add_subnode(fdt, chosen, "framebuffer@fa200000");
+	if (fb < 0)
+		return fb;
+
+	ret = fdt_setprop_string(fdt, fb, "compatible", "simple-framebuffer");
+	ret = ret ?: fdt_setprop(fdt, fb, "reg", reg, sizeof(reg));
+	ret = ret ?: fdt_setprop_u32(fdt, fb, "width", 1600);
+	ret = ret ?: fdt_setprop_u32(fdt, fb, "height", 2560);
+	ret = ret ?: fdt_setprop_u32(fdt, fb, "stride", 1600 * 4);
+	ret = ret ?: fdt_setprop_string(fdt, fb, "format", "a8r8g8b8");
+	return ret;
+}
+
+static int gts9_add_fb_serial(void *fdt)
+{
+	int chosen, console, ret;
+
+	chosen = fdt_path_offset(fdt, "/chosen");
+	if (chosen < 0)
+		return chosen;
+	console = fdt_subnode_offset(fdt, chosen, "framebuffer-console");
+	if (console < 0)
+		console = fdt_add_subnode(fdt, chosen, "framebuffer-console");
+	if (console < 0)
+		return console;
+
+	ret = fdt_setprop_string(fdt, console, "compatible",
+				 "samsung,gts9fepwifi-fb-serial");
+	ret = ret ?: fdt_setprop(fdt, console, "bootph-all", NULL, 0);
+	ret = ret ?: fdt_setprop_string(fdt, chosen, "stdout-path",
+					  "/chosen/framebuffer-console");
+	return ret;
+}
+
+static void gts9_unmask_decon_if_needed(void)
+{
+	u32 global = readl((void __iomem *)(GTS9_DECON_BASE + GTS9_GLOBAL_CON));
+
+	if (global & GTS9_COMMAND_MODE) {
+		u32 trig = readl((void __iomem *)(GTS9_DECON_BASE + GTS9_TRIG_CON));
+
+		trig = (trig & ~GTS9_HW_TRIG_MASK) | GTS9_HW_TRIG_EN;
+		writel(trig, (void __iomem *)(GTS9_DECON_BASE + GTS9_TRIG_CON));
+		asm volatile("dsb sy" ::: "memory");
+	}
+}
+
+#endif
 
 #define lmb_alloc(size, addr) \
 	lmb_alloc_mem(LMB_MEM_ALLOC_ANY, SZ_2M, addr, size, LMB_NONE)
@@ -199,6 +342,7 @@ static void exynos_env_setup(void)
 	env_set("fdtfile", buf);
 }
 
+#if !IS_ENABLED(CONFIG_GTS9FEPWIFI)
 static int exynos_blk_env_setup(void)
 {
 	const char *blk_ifname;
@@ -293,14 +437,44 @@ static int exynos_fastboot_setup(void)
 
 	return 0;
 }
+#endif
 
 int board_fdt_blob_setup(void **fdtp)
 {
+#if IS_ENABLED(CONFIG_GTS9FEPWIFI)
+	const void *stock_fdt = (const void *)get_prev_bl_fdt_addr();
+	void *gts9_fdt;
+	int ret;
+
+	if (fdt_check_header(stock_fdt))
+		return -EINVAL;
+	/* BSS overlaps .rela.dyn before relocation. Keep this copy in the
+	 * pre-relocation allocator until reserve_fdt() moves it to final RAM.
+	 */
+	gts9_fdt = malloc(GTS9_FDT_CAPACITY);
+	if (!gts9_fdt)
+		return -ENOMEM;
+	ret = fdt_open_into(stock_fdt, gts9_fdt, GTS9_FDT_CAPACITY);
+	if (ret)
+		return ret;
+	ret = fdt_add_mem_rsv(gts9_fdt, GTS9_FB_BASE, GTS9_FB_SIZE);
+	if (ret)
+		return ret;
+	ret = gts9_add_framebuffer(gts9_fdt);
+	if (ret)
+		return ret;
+	ret = gts9_add_fb_serial(gts9_fdt);
+	if (ret)
+		return ret;
+	*fdtp = gts9_fdt;
+	return 0;
+#else
 	/* If internal FDT is not available, use the external FDT instead. */
 	if (fdt_check_header(*fdtp))
 		*fdtp = (void *)get_prev_bl_fdt_addr();
 
 	return 0;
+#endif
 }
 
 int timer_init(void)
@@ -321,6 +495,9 @@ int timer_init(void)
 
 int board_early_init_f(void)
 {
+#if IS_ENABLED(CONFIG_GTS9FEPWIFI)
+	gts9_unmask_decon_if_needed();
+#endif
 	exynos_parse_dram_banks(gd->fdt_blob);
 
 	return 0;
@@ -329,6 +506,10 @@ int board_early_init_f(void)
 int dram_init(void)
 {
 	unsigned int i;
+
+#if IS_ENABLED(CONFIG_GTS9FEPWIFI)
+	gts9_early_progress(30);
+#endif
 
 	/* Select the largest RAM bank for U-Boot. */
 	for (i = 0; i < CONFIG_NR_DRAM_BANKS; i++) {
@@ -340,6 +521,21 @@ int dram_init(void)
 
 	return 0;
 }
+
+#if IS_ENABLED(CONFIG_GTS9FEPWIFI)
+phys_addr_t board_get_usable_ram_top(phys_size_t total_size)
+{
+	phys_addr_t base;
+
+	/* Keep the image, malloc arena and stack inside one unreserved span. */
+	base = get_mem_top(gd->ram_base, gd->ram_size, GTS9_UBOOT_WINDOW,
+			   (void *)gd->fdt_blob);
+	if (!base)
+		hang();
+
+	return base + GTS9_UBOOT_WINDOW;
+}
+#endif
 
 int dram_init_banksize(void)
 {
@@ -360,13 +556,20 @@ int board_init(void)
 
 int misc_init_r(void)
 {
+#if !IS_ENABLED(CONFIG_GTS9FEPWIFI)
 	int ret;
+#endif
 
 	exynos_env_setup();
+
+#if IS_ENABLED(CONFIG_GTS9FEPWIFI)
+	return 0;
+#else
 
 	ret = exynos_blk_env_setup();
 	if (ret)
 		return ret;
 
 	return exynos_fastboot_setup();
+#endif
 }

@@ -32,6 +32,10 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+#ifdef CONFIG_GTS9FEPWIFI
+extern void gts9_early_progress(unsigned int stage);
+#endif
+
 static const struct driver_info root_info = {
 	.name		= "root_driver",
 };
@@ -104,6 +108,10 @@ int dm_init(bool of_live)
 		gd->uclass_root = &DM_UCLASS_ROOT_S_NON_CONST;
 		INIT_LIST_HEAD(DM_UCLASS_ROOT_NON_CONST);
 	}
+#ifdef CONFIG_GTS9FEPWIFI
+	if (gd->flags & GD_FLG_RELOC)
+		gts9_early_progress(48);
+#endif
 
 	if (CONFIG_IS_ENABLED(OF_PLATDATA_INST)) {
 		ret = dm_setup_inst();
@@ -116,11 +124,23 @@ int dm_init(bool of_live)
 					  &DM_ROOT_NON_CONST);
 		if (ret)
 			return ret;
+#ifdef CONFIG_GTS9FEPWIFI
+		if (gd->flags & GD_FLG_RELOC)
+			gts9_early_progress(49);
+#endif
 		if (CONFIG_IS_ENABLED(OF_CONTROL))
 			dev_set_ofnode(DM_ROOT_NON_CONST, ofnode_root());
+#ifdef CONFIG_GTS9FEPWIFI
+		if (gd->flags & GD_FLG_RELOC)
+			gts9_early_progress(50);
+#endif
 		ret = device_probe(DM_ROOT_NON_CONST);
 		if (ret)
 			return ret;
+#ifdef CONFIG_GTS9FEPWIFI
+		if (gd->flags & GD_FLG_RELOC)
+			gts9_early_progress(51);
+#endif
 	}
 
 	INIT_LIST_HEAD((struct list_head *)&gd->dmtag_list);
@@ -374,8 +394,16 @@ int dm_init_and_scan(bool pre_reloc_only)
 	ret = dm_init(CONFIG_IS_ENABLED(OF_LIVE));
 	if (ret) {
 		dm_warn("dm_init() failed: %d\n", ret);
+#ifdef CONFIG_GTS9FEPWIFI
+		if (!pre_reloc_only)
+			gts9_early_progress(52);
+#endif
 		return ret;
 	}
+#ifdef CONFIG_GTS9FEPWIFI
+	if (!pre_reloc_only)
+		gts9_early_progress(43);
+#endif
 	if (!CONFIG_IS_ENABLED(OF_PLATDATA_INST)) {
 		ret = dm_scan(pre_reloc_only);
 		if (ret) {
@@ -383,6 +411,10 @@ int dm_init_and_scan(bool pre_reloc_only)
 			return ret;
 		}
 	}
+#ifdef CONFIG_GTS9FEPWIFI
+	if (!pre_reloc_only)
+		gts9_early_progress(44);
+#endif
 	if (CONFIG_IS_ENABLED(DM_EVENT)) {
 		ret = event_notify_null(gd->flags & GD_FLG_RELOC ?
 					EVT_DM_POST_INIT_R :

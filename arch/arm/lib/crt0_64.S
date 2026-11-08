@@ -12,6 +12,7 @@
 #include <config.h>
 #include <asm-offsets.h>
 #include <asm/macro.h>
+#include <asm/gts9-progress.h>
 #include <linux/linkage.h>
 #include <system-constants.h>
 
@@ -96,6 +97,9 @@ ENTRY(_main)
 
 	mov	x0, #0
 	bl	board_init_f
+#ifdef CONFIG_GTS9FEPWIFI
+	gts9_reloc_mark 64, 0xffff, 0x00ff /* board_init_f returned */
+#endif
 
 #if !defined(CONFIG_XPL_BUILD)
 /*
@@ -106,12 +110,25 @@ ENTRY(_main)
 	ldr	x0, [x18, #GD_START_ADDR_SP]	/* x0 <- gd->start_addr_sp */
 	bic	sp, x0, #0xf	/* 16-byte alignment for ABI compliance */
 	ldr	x18, [x18, #GD_NEW_GD]		/* x18 <- gd->new_gd */
+#ifdef CONFIG_GTS9FEPWIFI
+	gts9_reloc_mark 448, 0xffff, 0x0000 /* new stack and gd */
+#endif
 
 	/* Skip relocation in case gd->gd_flags & GD_FLG_SKIP_RELOC */
 	ldr	x0, [x18, #GD_FLAGS]		/* x0 <- gd->flags */
 	tbnz	x0, 11, relocation_return	/* GD_FLG_SKIP_RELOC is bit 11 */
 
 	adr	lr, relocation_return
+#if defined(CONFIG_GTS9FEPWIFI)
+	/* The image arrives at a runtime address unrelated to its link address.
+	 * Form the return PC from the destination and an image-relative offset.
+	 */
+	adrp	x0, _start
+	add	x0, x0, #:lo12:_start
+	sub	lr, lr, x0
+	ldr	x0, [x18, #GD_RELOCADDR]
+	add	lr, lr, x0
+#else
 #if CONFIG_POSITION_INDEPENDENT
 	/* Add in link-vs-runtime offset */
 	adrp	x0, _start		/* x0 <- Runtime value of _start */
@@ -128,10 +145,14 @@ ENTRY(_main)
 	/* Add in link-vs-relocation offset */
 	ldr	x9, [x18, #GD_RELOC_OFF]	/* x9 <- gd->reloc_off */
 	add	lr, lr, x9	/* new return address after relocation */
+#endif
 	ldr	x0, [x18, #GD_RELOCADDR]	/* x0 <- gd->relocaddr */
 	b	relocate_code
 
 relocation_return:
+#ifdef CONFIG_GTS9FEPWIFI
+	gts9_reloc_mark 2368, 0x80ff, 0x00ff /* returned at new address */
+#endif
 
 /*
  * Set up final (full) environment
@@ -166,13 +187,31 @@ clear_loop:
 	str	xzr, [x0], #8
 	cmp	x0, x1
 	b.lo	clear_loop
+#ifdef CONFIG_GTS9FEPWIFI
+	gts9_reloc_mark 2752, 0x00ff, 0x0000 /* BSS cleared */
+#endif
 
 	/* call board_init_r(gd_t *id, ulong dest_addr) */
 	mov	x0, x18				/* gd_t */
 	ldr	x1, [x18, #GD_RELOCADDR]	/* dest_addr */
+#ifdef CONFIG_GTS9FEPWIFI
+	gts9_reloc_mark 3136, 0x00ff, 0xffff /* ready to branch */
+#endif
 	b	board_init_r			/* PC relative jump */
 
 	/* NOTREACHED - board_init_r() does not return */
 #endif
 
 ENDPROC(_main)
+
+#ifdef CONFIG_GTS9FEPWIFI
+ENTRY(gts9_board_r_probe)
+	gts9_reloc_mark 3520, 0xffff, 0x00ff /* board_init_r entered */
+	ret
+ENDPROC(gts9_board_r_probe)
+
+ENTRY(gts9_board_r_probe_after)
+	gts9_reloc_mark 3904, 0x00ff, 0x00ff /* C framebuffer write returned */
+	ret
+ENDPROC(gts9_board_r_probe_after)
+#endif

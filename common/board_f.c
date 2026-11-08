@@ -31,9 +31,12 @@
 
 #ifdef CONFIG_TARGET_J2Y18LTE
 extern void j2_early_progress(unsigned int stage);
-#define J2_PROGRESS(stage) j2_early_progress(stage)
+#define BOARD_PROGRESS(stage) j2_early_progress(stage)
+#elif defined(CONFIG_GTS9FEPWIFI)
+extern void gts9_early_progress(unsigned int stage);
+#define BOARD_PROGRESS(stage) gts9_early_progress(stage)
 #else
-#define J2_PROGRESS(stage) do { } while (0)
+#define BOARD_PROGRESS(stage) do { } while (0)
 #endif
 #include <log.h>
 #include <malloc.h>
@@ -930,41 +933,41 @@ static void initcall_run_f(void)
 	 * For simplicity it should remain an ordered list of function calls.
 	 */
 	INITCALL(setup_mon_len);
-	J2_PROGRESS(2);
+	BOARD_PROGRESS(2);
 	INITCALL(initf_malloc);
-	J2_PROGRESS(3);
+	BOARD_PROGRESS(3);
 #if CONFIG_IS_ENABLED(OF_CONTROL)
 	INITCALL(fdtdec_setup);
-	J2_PROGRESS(4);
+	BOARD_PROGRESS(4);
 #endif
 #if CONFIG_IS_ENABLED(TRACE_EARLY)
 	INITCALL(trace_early_init);
 #endif
 	INITCALL(initf_upl);
 	INITCALL(log_init);
-	J2_PROGRESS(5);
+	BOARD_PROGRESS(5);
 	INITCALL(initf_bootstage); /* uses its own timer, so does not need DM */
-	J2_PROGRESS(6);
+	BOARD_PROGRESS(6);
 	INITCALL(event_init);
-	J2_PROGRESS(7);
+	BOARD_PROGRESS(7);
 #if CONFIG_IS_ENABLED(BLOBLIST)
 	INITCALL(bloblist_init);
 #endif
 	INITCALL(setup_spl_handoff);
-	J2_PROGRESS(8);
+	BOARD_PROGRESS(8);
 #if CONFIG_IS_ENABLED(CONSOLE_RECORD_INIT_F)
 	INITCALL(console_record_init);
 #endif
 	INITCALL_EVT(EVT_FSP_INIT_F);
 	INITCALL(arch_cpu_init);	/* basic arch cpu dependent setup */
-	J2_PROGRESS(9);
+	BOARD_PROGRESS(9);
 	INITCALL(mach_cpu_init);	/* SoC/machine dependent CPU setup */
-	J2_PROGRESS(10);
+	BOARD_PROGRESS(10);
 	INITCALL(initf_dm);
-	J2_PROGRESS(11);
+	BOARD_PROGRESS(11);
 #if CONFIG_IS_ENABLED(BOARD_EARLY_INIT_F)
 	INITCALL(board_early_init_f);
-	J2_PROGRESS(12);
+	BOARD_PROGRESS(12);
 #endif
 #if defined(CONFIG_PPC) || defined(CONFIG_SYS_FSL_CLK) || defined(CONFIG_M68K)
 	/* get CPU and bus clocks according to the environment variable */
@@ -972,15 +975,21 @@ static void initcall_run_f(void)
 #endif
 #if !defined(CONFIG_M68K) || (defined(CONFIG_M68K) && !defined(CONFIG_MCFTMR))
 	INITCALL(timer_init);		/* initialize timer */
+	BOARD_PROGRESS(23);
 #endif
 #if CONFIG_IS_ENABLED(BOARD_POSTCLK_INIT)
 	INITCALL(board_postclk_init);
 #endif
 	INITCALL(env_init);		/* initialize environment */
+	BOARD_PROGRESS(24);
 	INITCALL(init_baud_rate);	/* initialze baudrate settings */
+	BOARD_PROGRESS(25);
 	INITCALL(serial_init);		/* serial communications setup */
+	BOARD_PROGRESS(26);
 	INITCALL(console_init_f);	/* stage 1 init of console */
+	BOARD_PROGRESS(27);
 	INITCALL(display_options);	/* say that we are here */
+	BOARD_PROGRESS(28);
 	INITCALL(display_text_info);	/* show debugging info if required */
 	INITCALL(checkcpu);
 #if CONFIG_IS_ENABLED(SYSRESET_PRINT_RESETINFO)
@@ -1003,7 +1012,9 @@ static void initcall_run_f(void)
 	INITCALL(init_func_i2c);
 #endif
 	INITCALL(announce_dram_init);
+	BOARD_PROGRESS(29);
 	INITCALL(dram_init);		/* configure available RAM banks */
+	BOARD_PROGRESS(13);
 #if CONFIG_IS_ENABLED(POST)
 	INITCALL(post_init_f);
 #endif
@@ -1032,6 +1043,7 @@ static void initcall_run_f(void)
 	INITCALL(dram_init_banksize);
 	INITCALL(setup_ram_config);
 	INITCALL(setup_dest_addr);
+	BOARD_PROGRESS(14);
 #if CONFIG_IS_ENABLED(OF_BOARD_FIXUP) && \
     !CONFIG_IS_ENABLED(OF_INITIAL_DTB_READONLY)
 	INITCALL(fix_fdt);
@@ -1058,6 +1070,7 @@ static void initcall_run_f(void)
 	INITCALL(reserve_bloblist);
 	INITCALL(reserve_arch);
 	INITCALL(reserve_stacks);
+	BOARD_PROGRESS(15);
 	INITCALL(show_dram_config);
 	WATCHDOG_RESET();
 	INITCALL(setup_bdinfo);
@@ -1070,6 +1083,7 @@ static void initcall_run_f(void)
 	INITCALL(reloc_bootstage);
 	INITCALL(reloc_bloblist);
 	INITCALL(setup_reloc);
+	BOARD_PROGRESS(16);
 #if CONFIG_IS_ENABLED(X86) || CONFIG_IS_ENABLED(ARC)
 	INITCALL(copy_uboot_to_ram);
 	INITCALL(do_elf_reloc_fixups);
@@ -1097,7 +1111,7 @@ void board_init_f(ulong boot_flags)
 	gd->flags = boot_flags;
 	gd->flags &= ~GD_FLG_HAVE_CONSOLE;
 	gd->boardf = &boardf;
-	J2_PROGRESS(1);
+	BOARD_PROGRESS(1);
 
 	initcall_run_f();
 

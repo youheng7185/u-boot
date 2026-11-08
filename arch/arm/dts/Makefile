@@ -33,6 +33,7 @@ dtb-$(CONFIG_TARGET_A5Y17LTE) += exynos78x0-axy17lte.dtb
 dtb-$(CONFIG_TARGET_A3Y17LTE) += exynos78x0-axy17lte.dtb
 dtb-$(CONFIG_TARGET_A7Y17LTE) += exynos78x0-axy17lte.dtb
 dtb-$(CONFIG_TARGET_J2Y18LTE) += msm8917-j2y18lte.dtb
+dtb-$(CONFIG_GTS9FEPWIFI) += s5e8835-gts9fepwifi.dtb
 
 dtb-$(CONFIG_ARCH_DAVINCI) += \
 	da850-lcdk.dtb \
